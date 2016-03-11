@@ -243,10 +243,6 @@ class Msg8a {
 
 	int32_t m_niceness;
 
-	char *m_dom;
-	char *m_hostEnd;
-	char *m_p;
-
 	int32_t  m_requests;
 	int32_t  m_replies;
 	char  m_doneLaunching;
