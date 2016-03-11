@@ -752,7 +752,7 @@ void HttpMime::makeMime  ( int32_t    totalContentLen    ,
 			   const char   *ext                ,
 			   bool    POSTReply          ,
 			   const char   *contentType        ,
-			   char   *charset            ,
+			   const char   *charset            ,
 			   int32_t    httpStatus         ,
 			   char   *cookie             ) {
 	// assume UTF-8

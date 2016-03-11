@@ -110,7 +110,7 @@ class HttpMime {
 			  const char   *ext              = NULL,
 			  bool    POSTReply        = false,
 			  const char   *contentType      = NULL ,
-			  char   *charset          = NULL ,
+	          const char   *charset          = NULL ,
 			  int32_t    httpStatus       = -1   ,
 			  char   *cookie           = NULL );
 
