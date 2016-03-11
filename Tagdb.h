@@ -165,16 +165,11 @@ class Tagdb  {
 
 	bool verify ( char *coll );
 
-	bool addColl ( char *coll, bool doVerify = true );
-
 	// used by ../rdb/Msg0 and ../rdb/Msg1
 	Rdb *getRdb ( ) { return &m_rdb; };
 
-	key128_t makeStartKey ( char *site );//Url *u ) ;
-	key128_t makeEndKey   ( char *site );//Url *u ) ;
-
-	key128_t makeDomainStartKey ( Url *u ) ;
-	key128_t makeDomainEndKey   ( Url *u ) ;
+	key128_t makeStartKey ( const char *site, int32_t siteLen );
+	key128_t makeEndKey   ( const char *site, int32_t siteLen );
 
 	// private:
 
@@ -238,8 +233,8 @@ class Msg8a {
 
 	Msg0    m_msg0s[MAX_TAGDB_REQUESTS];
 
-	key128_t m_siteStartKey ;
-	key128_t m_siteEndKey   ;
+	char m_site[255];
+	int32_t m_siteLen;
 
 	int32_t m_niceness;
 
@@ -255,6 +250,9 @@ class Msg8a {
 	// hack for MsgE
 	void *m_state2;
 	void *m_state3;
+
+private:
+	bool launchGetRequest( const char* str, int32_t strLen );
 };
 
 #endif // GB_TAGDB_H

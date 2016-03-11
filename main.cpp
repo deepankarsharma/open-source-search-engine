@@ -4944,8 +4944,8 @@ void dumpTagdb( char *coll, int32_t startFileNum, int32_t numFiles, bool include
 	startKey.setMin();
 	endKey.setMax();
 	if ( siteArg ) {
-		startKey = g_tagdb.makeStartKey ( siteArg );
-		endKey = g_tagdb.makeEndKey ( siteArg );
+		startKey = g_tagdb.makeStartKey ( siteArg, strlen(siteArg) );
+		endKey = g_tagdb.makeEndKey ( siteArg, strlen(siteArg) );
 		log("gb: using site %s for start key",siteArg );
 	}
 
