@@ -1421,7 +1421,7 @@ bool Msg8a::launchGetRequest( const char* str, int32_t strLen ) {
 // . sets g_errno and returns true on error
 bool Msg8a::launchGetRequests ( ) {
 	// initialize cache
-	if (!s_cacheInitialized) {
+	if ( !s_cacheInitialized ) {
 		int64_t maxCacheSize = g_conf.m_tagRecCacheSize;
 		int64_t maxCacheNodes = (maxCacheSize / 200);
 
@@ -1768,16 +1768,8 @@ bool sendReply ( void *state ) {
 	endKey.setMax();
 
 	// set it from safe buf
-	list->set ( sbuf->getBufStart() ,
-		    sbuf->length() ,
-		    NULL ,
-		    0 ,
-		    (char *)&startKey ,
-		    (char *)&endKey  ,
-		    -1 ,
-		    false ,
-		    false ,
-		    sizeof(key128_t) );
+	list->set ( sbuf->getBufStart(), sbuf->length(), NULL, 0, (char *)&startKey, (char *)&endKey, -1,
+	            false, false, sizeof(key128_t) );
 
 	// no longer adding
 	st->m_adding = false;
@@ -1785,14 +1777,9 @@ bool sendReply ( void *state ) {
 	// . just use TagRec::m_msg1 now
 	// . no, can't use that because tags are added using SafeBuf::addTag()
 	//   which first pushes the rdbid, so we gotta use msg4
-	if ( ! st->m_msg1.addList ( list ,
-				    RDB_TAGDB ,
-				    st->m_collnum ,
-				    st ,
-				    sendReplyWrapper2 ,
-				    false ,
-				    st->m_niceness ) )
+	if ( ! st->m_msg1.addList ( list, RDB_TAGDB, st->m_collnum, st, sendReplyWrapper2, false, st->m_niceness ) ) {
 		return false;
+	}
 
 	// . if addTagRecs() doesn't block then sendReply right away
 	// . this returns false if blocks, true otherwise
@@ -1811,81 +1798,72 @@ bool sendReply2 ( void *state ) {
 	// page is not more than 32k
 	char buf[1024*32];
 	SafeBuf sb(buf, 1024*32);
+
 	// do they want an xml reply?
-	if( r->getLong("xml",0) ) { // was "raw"
-		sb.safePrintf("<?xml version=\"1.0\" "
-			      "encoding=\"ISO-8859-1\"?>\n"
-			      "<response>\n");
-	
+	if ( r->getLong( "xml", 0 ) ) {
+		sb.safePrintf("<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>\n<response>\n");
 		st->m_tagRec.printToBufAsXml(&sb);
-		
 		sb.safePrintf("</response>");
-		log ( LOG_INFO,"sending raw page###\n");
+
+		log ( LOG_INFO,"sending xml page###\n");
+
 		// clear g_errno, if any, so our reply send goes through
 		g_errno = 0;
+
 		// extract the socket
 		TcpSocket *s = st->m_socket;
+
 		// . nuke the state
 		mdelete(st, sizeof(State12), "PageTagdb");
 		delete (st);
+
 		// . send this page
 		// . encapsulates in html header and tail
 		// . make a Mime
-		return g_httpServer.sendDynamicPage(s, sb.getBufStart(), 
-                                                    sb.length(),
-						    0, false, "text/xml",
-						    -1, NULL, "ISO-8859-1");
+		return g_httpServer.sendDynamicPage(s, sb.getBufStart(), sb.length(), 0, false,
+		                                    "text/xml", -1, NULL, "ISO-8859-1");
 	}
+
 	// . print standard header
 	// . do not print big links if only an assassin, just print host ids
 	g_pages.printAdminTop ( &sb, st->m_socket , &st->m_r );
+
 	// did we add some sites???
 	if ( st->m_adding ) {
 		// if there was an error let them know
-		if ( g_errno )
-			sb.safePrintf("<center>Error adding site(s): <b>"
-				      "%s[%i]</b><br><br></center>\n",
-				      mstrerror(g_errno) , g_errno );
-		else   sb.safePrintf ("<center><b><font color=red>"
-				      "Sites added successfully"
-				      "</font></b><br><br></center>\n");
+		if ( g_errno ) {
+			sb.safePrintf( "<center>Error adding site(s): <b>%s[%i]</b><br><br></center>\n",
+			               mstrerror( g_errno ), g_errno );
+		} else {
+			sb.safePrintf ("<center><b><font color=red>Sites added successfully</font></b><br><br></center>\n");
+		}
 	}
 
-	//char *c = st->m_coll;
 	char bb [ MAX_COLL_LEN + 60 ];
 	bb[0]='\0';
 
-	sb.safePrintf(
-		      "<style>"
-		      ".poo { background-color:#%s;}\n"
-		      "</style>\n" ,
-		      LIGHT_BLUE );
+	sb.safePrintf( "<style>.poo { background-color:#%s;}</style>\n" , LIGHT_BLUE );
 
 	// print interface to add sites
-	sb.safePrintf (
-		  "<table %s>"
-		  "<tr><td colspan=2>"
-		  "<center><b>Tagdb</b>%s</center>"
-		  "</td></tr>", TABLE_STYLE , bb );
+	sb.safePrintf ( "<table %s>"
+	                "<tr><td colspan=2><center><b>Tagdb</b>%s</center></td></tr>", TABLE_STYLE , bb );
 
 	// sometimes we add a huge # of urls, so don't display them because
 	// it like freezes the silly browser
-	char *uu = st->m_urls;
-	if ( st->m_urlsLen > 100000 ) uu = "";
+	const char *uu = st->m_urls;
+	if ( st->m_urlsLen > 100000 ) {
+		uu = "";
+	}
 
 	sb.safePrintf ( "<tr class=poo><td>"
 			"<b>urls</b>"
 			"<br>"
 
 			"<font size=-2>"
-			"Enter a single URL and then click <i>Get Tags</i> to "
-			"get back its tags. Enter multiple URLs and select "
-			"the tags names and values in the other table "
-			"below in order to tag "
-			"them all with those tags when you click "
-			"<i>Add Tags</i>. "
-			"On the command line you can also issue a "
-			"<i>./gb 0 dump S main 0 -1 1</i>"
+			"Enter a single URL and then click <i>Get Tags</i> to get back its tags. "
+			"Enter multiple URLs and select the tags names and values in the other table "
+			"below in order to tag them all with those tags when you click <i>Add Tags</i>. "
+			"On the command line you can also issue a <i>./gb dump S main 0 -1 1</i>"
 			"command, for instance, to dump out the tagdb "
 			"contents for the <i>main</i> collection on "
 			"<i>host #0</i>. "
