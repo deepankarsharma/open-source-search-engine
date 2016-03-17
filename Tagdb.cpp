@@ -930,6 +930,9 @@ static TagDesc s_tagDesc[] = {
 	//   doing the throttling, really messing things up
 	{"firstip"              ,0x00,0},
 
+	{"titlexpath", TDF_STRING, 0},
+	{"summaryxpath", TDF_STRING, 0},
+
     // As above, we can't remove the following definition unless if we're sure it's not set anymore
     // Anything below this point is unused.
 	{"manualfilter", 0x00, 0},

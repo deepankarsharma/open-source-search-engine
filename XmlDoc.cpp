@@ -413,9 +413,9 @@ void XmlDoc::logQueryTimingEnd(const char* function, int64_t startTime) {
 	int64_t endTime = gettimeofdayInMilliseconds();
 	int64_t diff = endTime - startTime;
 
-	//if (diff > 5) {
+	if (diff > 0) {
 		log( LOG_TIMING, "query: XmlDoc::%s took %" INT64 " ms for docId=%" INT64, function, diff, m_docId );
-	//}
+	}
 }
 
 char *XmlDoc::getTestDir ( ) {
@@ -19488,8 +19488,16 @@ Summary *XmlDoc::getSummary () {
 		return (Summary *)ti;
 	}
 
+	// get summaryxpath
+	TagRec *gr = getTagRec();
+	if ( ! gr || gr == (TagRec *)-1 ) {
+		return (Summary *)gr;
+	}
+
+	const char *xpath = gr->getString("summaryxpath", NULL);
+
 	int64_t start = logQueryTimingStart();
-    if ( m_summary.setSummaryFromTags( xml, m_req->m_summaryMaxLen, ti->getTitle(), ti->getTitleLen() ) ) {
+    if ( m_summary.setSummaryFromTags( xml, xpath, m_req->m_summaryMaxLen, ti->getTitle(), ti->getTitleLen() ) ) {
 		logQueryTimingEnd( __func__, start );
 
 		m_summaryValid = true;

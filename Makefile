@@ -18,7 +18,8 @@ OBJS =  UdpSlot.o Rebalance.o \
 	hash.o Domains.o \
 	Collectiondb.o \
 	linkspam.o ip.o sort.o \
-	fctypes.o XmlNode.o XmlDoc.o XmlDoc_Indexing.o Xml.o \
+	fctypes.o XmlNode.o XmlXPath.o Xml.o \
+	XmlDoc.o XmlDoc_Indexing.o \
 	Words.o Url.o UdpServer.o \
 	Threads.o Titledb.o HashTable.o \
 	TcpServer.o Summary.o \

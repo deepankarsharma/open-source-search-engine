@@ -13,7 +13,7 @@ OBJECTS = GigablastTest.o \
 	ScalingFunctionsTest.o SummaryTest.o \
 	UnicodeTest.o UrlTest.o \
 	WordsTest.o \
-	XmlTest.o
+	XmlTest.o XmlXPathTest.o
 
 .PHONY: all
 all: $(TARGET)
