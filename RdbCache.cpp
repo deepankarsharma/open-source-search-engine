@@ -29,22 +29,20 @@ RdbCache::RdbCache () {
 RdbCache::~RdbCache ( ) { reset (); }
 
 #define BUFSIZE (128*1024*1024)
-//#define BUFSIZE (100000)
-//#define BUFSIZE (200000)
 
 void RdbCache::reset ( ) {
-
-	//if ( m_numBufs > 0 )
-	//	log("db: resetting record cache");
 	m_offset = 0;
 	m_tail   = 0;
-	for ( int32_t i = 0 ; i < m_numBufs ; i++ )
+	for ( int32_t i = 0 ; i < m_numBufs ; i++ ) {
 		// all bufs, but not necessarily last, are BUFSIZE bytes big
-		mfree ( m_bufs[i] , m_bufSizes[i] , "RdbCache" );
+		mfree( m_bufs[i], m_bufSizes[i], "RdbCache" );
+	}
 	m_numBufs     = 0;
 	m_totalBufSize= 0;
 
-	if ( m_ptrs ) mfree ( m_ptrs , m_numPtrsMax*sizeof(char *),"RdbCache");
+	if ( m_ptrs ) {
+		mfree( m_ptrs, m_numPtrsMax * sizeof( char * ), "RdbCache" );
+	}
 	m_ptrs        = NULL;
 	m_numPtrsUsed = 0;
 	// can't reset this, breaks the load!
@@ -65,16 +63,9 @@ void RdbCache::reset ( ) {
 	m_isSaving = false;
 }
 
-bool RdbCache::init ( int32_t  maxMem        ,
-		      int32_t  fixedDataSize ,
-		      bool  supportLists  ,
-		      int32_t  maxRecs       ,
-		      bool  useHalfKeys   ,
-		      char *dbname        ,
-		      bool  loadFromDisk  ,
-		      char  cacheKeySize  ,
-		      char  dataKeySize   ,
-		      int32_t  numPtrsMax    ) {
+bool RdbCache::init( int32_t maxMem, int32_t fixedDataSize, bool supportLists, int32_t maxRecs,
+					 bool useHalfKeys, char *dbname, bool loadFromDisk, char cacheKeySize, char dataKeySize,
+					 int32_t numPtrsMax ) {
 	// reset all
 	reset();
 	// watch out 
@@ -93,13 +84,10 @@ bool RdbCache::init ( int32_t  maxMem        ,
 	// do not use some cache if we are the tmp cluster
 	RdbCache *th = NULL;
 	if ( g_hostdb.m_useTmpCluster ) th = this;
-	//if ( th == &g_genericCache[SITEQUALITY_CACHEID] ) maxMem = 0;
 	if ( th ==  g_dns.getCache      ()              ) maxMem = 0;
 	if ( th ==  g_dns.getCacheLocal ()              ) maxMem = 0;
 	if ( th ==  robots                              ) maxMem = 0;
 	if ( th ==  others                              ) maxMem = 0;
-	//if ( th == &g_forcedCache                       ) maxMem = 0;
-	//if ( th == &g_alreadyAddedCache                 ) maxMem = 0;
 
 	// this is the fixed dataSize of all records in a list, not the
 	// fixed dataSize of a list itself. Note that.
@@ -138,9 +126,7 @@ bool RdbCache::init ( int32_t  maxMem        ,
 	sprintf(ttt,"cptrs-%s",m_dbname);
 	m_ptrs = (char **) mcalloc (sizeof(char *)*m_numPtrsMax , ttt );
 	if ( ! m_ptrs ) return log("RdbCache::init: %s", mstrerror(g_errno));
-	// debug testing -- remove later
-	//m_crcs=(int32_t *)mcalloc(4*m_numPtrsMax,"RdbCache");
-	//if (!m_crcs)return log("RdbCache::init: %s", mstrerror(g_errno));
+
 	// update OUR mem alloced
 	m_memAlloced = m_numPtrsMax * sizeof(char *);
 	// include this
@@ -190,7 +176,6 @@ bool RdbCache::init ( int32_t  maxMem        ,
 	return true;
 }
 
-//bool RdbCache::isInCache ( collnum_t collnum, key_t cacheKey, int32_t maxAge ) {
 bool RdbCache::isInCache ( collnum_t collnum, char *cacheKey, int32_t maxAge ) {
 	// maxAge of 0 means don't check cache
 	if ( maxAge == 0 ) return false;
@@ -223,9 +208,7 @@ bool RdbCache::isInCache ( collnum_t collnum, char *cacheKey, int32_t maxAge ) {
 // . a quick hack for SpiderCache.cpp
 // . if your record is always a 4 byte int32_t call this
 // . returns -1 if not found, so don't store -1 in there then
-int64_t RdbCache::getLongLong ( collnum_t collnum ,
-				  uint32_t key , int32_t maxAge ,
-				  bool promoteRecord ) {
+int64_t RdbCache::getLongLong( collnum_t collnum, uint32_t key, int32_t maxAge, bool promoteRecord ) {
 	char *rec;
 	int32_t  recSize;
 	key_t k;
@@ -288,9 +271,7 @@ int64_t RdbCache::getLongLong2 ( collnum_t collnum ,
 }
 	
 // this puts a int32_t in there
-void RdbCache::addLongLong2 ( collnum_t collnum ,
-			      uint64_t key , int64_t value ,
-			      char **retRecPtr ) {
+void RdbCache::addLongLong2( collnum_t collnum, uint64_t key, int64_t value, char **retRecPtr ) {
 	key_t k;
 	k.n0 = (uint64_t)key;
 	k.n1 = 0;
@@ -311,24 +292,16 @@ void RdbCache::addLongLong ( collnum_t collnum ,
 	key_t k;
 	k.n0 = 0;
 	k.n1 = (uint64_t)key;
-	// sanity check
-	//if ( m_cks != 4 ) { char *xx = NULL; *xx = 0; }
+
 	// sanity check
 	if ( m_cks > (int32_t)sizeof(key_t) ) { char *xx = NULL; *xx = 0; }
-	//if ( m_dks != 0 ) { char *xx = NULL; *xx = 0; }
-	//addRecord ( collnum , k , NULL , 0 , (char *)&value , 8 ,
-	//addRecord ( collnum , (char *)&key , NULL , 0 , (char *)&value , 8 ,
-	addRecord ( collnum , (char *)&k , NULL , 0 , (char *)&value , 8 ,
-		    0 , // timestamp=now
-		    retRecPtr );
+
+	addRecord ( collnum, (char *)&k, NULL, 0, (char *)&value, 8, 0, retRecPtr );
 	// clear error in case addRecord set it
 	g_errno = 0;
 }
 
-
-int32_t RdbCache::getLong ( collnum_t collnum ,
-			 uint64_t key , int32_t maxAge ,
-			 bool promoteRecord ) {
+int32_t RdbCache::getLong( collnum_t collnum, uint64_t key, int32_t maxAge, bool promoteRecord ) {
 	char *rec;
 	int32_t  recSize;
 	key_t k;
@@ -357,9 +330,7 @@ int32_t RdbCache::getLong ( collnum_t collnum ,
 	
 
 // this puts a int32_t in there
-void RdbCache::addLong ( collnum_t collnum ,
-			 uint64_t key , int32_t value ,
-			 char **retRecPtr ) {
+void RdbCache::addLong( collnum_t collnum, uint64_t key, int32_t value, char **retRecPtr ) {
 	key_t k;
 	k.n0 = 0;
 	k.n1 = key;
@@ -374,16 +345,8 @@ void RdbCache::addLong ( collnum_t collnum ,
 	g_errno = 0;
 }
 
-
-bool RdbCache::getRecord ( char    *coll       ,
-			   char    *cacheKey   ,
-			   char   **rec        ,
-			   int32_t    *recSize    ,
-			   bool     doCopy     ,
-			   int32_t     maxAge     ,
-			   bool     incCounts  ,
-			   time_t  *cachedTime ,
-			   bool     promoteRecord) {
+bool RdbCache::getRecord( char *coll, char *cacheKey, char **rec, int32_t *recSize, bool doCopy,
+						  int32_t maxAge, bool incCounts, time_t *cachedTime, bool promoteRecord ) {
 	collnum_t collnum = g_collectiondb.getCollnum ( coll );
 	if ( collnum < (collnum_t) 0 ) {
 		log("db: Could not get cache rec for collection \"%s\".",coll);
@@ -394,10 +357,7 @@ bool RdbCache::getRecord ( char    *coll       ,
 }
 
 // returns false if was not in the cache, true otherwise
-bool RdbCache::setTimeStamp ( collnum_t  collnum      ,
-			      char      *cacheKey     ,
-			      int32_t       newTimeStamp ) {
-
+bool RdbCache::setTimeStamp( collnum_t collnum, char *cacheKey, int32_t newTimeStamp ) {
 	// return now if table empty
 	if ( m_numPtrsMax <= 0 ) return false;
 	// look up in hash table
@@ -420,15 +380,8 @@ bool RdbCache::setTimeStamp ( collnum_t  collnum      ,
 
 // . returns true if found, false if not found in cache
 // . sets *rec and *recSize iff found
-bool RdbCache::getRecord ( collnum_t collnum   ,
-			   char    *cacheKey   ,
-			   char   **rec        ,
-			   int32_t    *recSize    ,
-			   bool     doCopy     ,
-			   int32_t     maxAge     ,
-			   bool     incCounts  ,
-			   time_t  *cachedTime ,
-			   bool     promoteRecord ) {
+bool RdbCache::getRecord( collnum_t collnum, char *cacheKey, char **rec, int32_t *recSize, bool doCopy,
+						  int32_t maxAge, bool incCounts, time_t *cachedTime, bool promoteRecord ) {
 	// maxAge of 0 means don't check cache
 	if ( maxAge == 0 ) return false;
 	// bail if no cache
@@ -537,14 +490,10 @@ bool RdbCache::getRecord ( collnum_t collnum   ,
 	// i do this for all caches now... what are the downsides? i forget.
 	//
 	bool check = true;//false;
-	//if ( this == &g_genericCache[SITEQUALITY_CACHEID] ) check = true;
 	if ( this ==  g_dns.getCache      ()              ) check = true;
 	if ( this ==  g_dns.getCacheLocal ()              ) check = true;
 	if ( this ==  robots                              ) check = true;
 	if ( this ==  others                              ) check = true;
-	//if ( this == &g_deadWaitCache                   ) check = true;
-	//if ( this == &g_forcedCache                       ) check = true;
-	//if ( this == &g_alreadyAddedCache                 ) check = true;
 	// this algo seems to have issues with really large recs
 	// because spaces.live.com list was 570k and the data was foobar
 	// so just don't do promotion on it ever...
@@ -553,12 +502,11 @@ bool RdbCache::getRecord ( collnum_t collnum   ,
 	//if ( this == &g_qtable                            ) check = true;
 	//if ( m_totalBufSize < 20000                       ) check = false;
 	if ( check ) promoteRecord = false;
-	// sanity check, do not allow the site quality cache or dns cache to 
-	// be > 128MB, that just does not make sense and it complicates things
-	//if(check && m_totalBufSize > BUFSIZE ) { char *xx = NULL; *xx = 0; }
+
 	// sanity check
 	if ( m_tail < 0 || m_tail > m_totalBufSize ) { 
-		char *xx = NULL; *xx = 0; }
+		char *xx = NULL; *xx = 0;
+	}
 	// get the window of promotion
 	int32_t  tenPercent = (int32_t)(((float)m_totalBufSize) * .10);
 	char *start1     = m_bufs[0] + m_tail ;
@@ -575,17 +523,7 @@ bool RdbCache::getRecord ( collnum_t collnum   ,
 	// to avoid losing it in a delete operation
 	if ( check && *rec >= start1 && *rec <= end1 ) promoteRecord = true;
 	if ( check && *rec >= start2 && *rec <= end2 ) promoteRecord = true;
-	// debug
-	//if ( check )
-	//	logf(LOG_DEBUG,
-	//	     "db: promote=%"UINT32" "
-	//	     "start1=%"UINT32" end1=%"UINT32" "
-	//	     "start2=%"UINT32" end2=%"UINT32" "
-	//	     "rec=%"UINT32" m_tail=%"UINT32" bufs[0]=%"UINT32" total=%"UINT32"",
-	//	     (int32_t)promoteRecord ,
-	//	     (int32_t)start1,(int32_t)end1,(int32_t)start2,(int32_t)end2,
-	//	     (int32_t)*rec,(int32_t)m_tail,(int32_t)m_bufs[0],m_totalBufSize);
-	
+
 	// . now promote the record, same as adding (this always copies)
 	// . do this after mdup as there is a chance it will overwrite
 	//   the original record with the copy of the same record
@@ -595,20 +533,10 @@ bool RdbCache::getRecord ( collnum_t collnum   ,
 		//removeKey ( collnum , cacheKey , ptr );
 		//markDeletedRecord(ptr);
 
-		//int32_t n = hash32 ( cacheKey , m_cks ) % m_numPtrsMax;
-		//if ( this == &g_robotdb.m_rdbCache )
-		// if ( this == &g_spiderLoop.m_winnerListCache ) {
-		// 	logf(LOG_DEBUG, "db: cachebug: promoting record "
-		// 	     "k.n0=0x%"XINT64" n=%"INT32"",
-		// 	     ((key_t *)cacheKey)->n0,
-		// 	     *recSize);
-		// }
 		char *retRec = NULL;
-		addRecord ( collnum , cacheKey , *rec , *recSize , timestamp ,
-			    &retRec );
+		addRecord ( collnum, cacheKey, *rec, *recSize, timestamp, &retRec );
 		// update our rec, it might have been deleted then re-added
-		// and we have to be careful of that delimter clobbering
-		// memset() below
+		// and we have to be careful of that delimter clobbering memset() below
 		if ( ! doCopy ) *rec = retRec;
 	}
 	// keep track of cache stats if we should
@@ -633,15 +561,8 @@ bool RdbCache::getRecord ( collnum_t collnum   ,
 // . we use "endKey" so we know if the FULL list was needed or not
 // . if "incCounts" is true and we hit  we inc the hit  count
 // . if "incCounts" is true and we miss we inc the miss count
-bool RdbCache::getList ( collnum_t collnum  ,
-			 //key_t    cacheKey  ,
-			 //key_t    startKey  ,
-			 char     *cacheKey  ,
-			 char     *startKey  ,
-			 RdbList *list      ,
-			 bool     doCopy    ,
-			 int32_t     maxAge    ,
-			 bool     incCounts ) {
+bool RdbCache::getList( collnum_t collnum, char *cacheKey, char *startKey, RdbList *list, bool doCopy,
+						int32_t maxAge, bool incCounts ) {
 	// reset the list
 	list->reset();
 	// maxAge of 0 means don't check cache
@@ -659,9 +580,6 @@ bool RdbCache::getList ( collnum_t collnum  ,
 			    incCounts ,
 			    NULL      ) ) return false;
 	// first 2 keys of bytes are the start and end keys
-	//key_t endKey = *(key_t *)rec;
-	//char *data     = rec     + sizeof(key_t);
-	//int32_t  dataSize = recSize - sizeof(key_t);
 	char *endKey   = rec;
 	char *data     = rec     + m_dks;
 	int32_t  dataSize = recSize - m_dks;
@@ -691,45 +609,37 @@ bool RdbCache::getList ( collnum_t collnum  ,
 }
 
 // returns false and sets errno on error
-//bool RdbCache::addList ( char *coll , key_t cacheKey , RdbList *list ) {
-bool RdbCache::addList ( char *coll , char *cacheKey , RdbList *list ) {
+bool RdbCache::addList( char *coll , char *cacheKey , RdbList *list ) {
 	collnum_t collnum = g_collectiondb.getCollnum ( coll );
 	if ( collnum < 0 ) {
-		log("query: Collection %s does not exist. Cache failed.",
-		    coll);
+		log("query: Collection %s does not exist. Cache failed.", coll);
 		return false;
 	}
+
 	return addList ( collnum , cacheKey , list );
 }
 
 // returns false and sets errno on error
-//bool RdbCache::addList ( collnum_t collnum , key_t cacheKey , RdbList *list){
-bool RdbCache::addList ( collnum_t collnum , char *cacheKey , RdbList *list ) {
+bool RdbCache::addList( collnum_t collnum , char *cacheKey , RdbList *list ) {
 	// . sanity check
 	// . msg2 sometimes fails this check when it adds to the cache
-	if ( list->m_ks != m_dks ) { 
-		//g_errno = EBADENGINEER;
-		return log("cache: key size %"INT32" != %"INT32"",
-			   (int32_t)list->m_ks,(int32_t)m_dks);
-		//char *xx = NULL; *xx = 0; }
+	if ( list->m_ks != m_dks ) {
+		log("cache: key size %" INT32" != %" INT32"", (int32_t)list->m_ks,(int32_t)m_dks);
+		return false;
 	}
+
 	// store endkey then list data in the record data slot
-	//key_t k;
-	//k = list->getLastKey  ();
 	char *k = list->getLastKey  ();
+
 	// just to make sure
 	char *data     = list->getList();
 	int32_t  dataSize = list->getListSize();
 	if ( ! data ) dataSize = 0;
+
 	// . add as a record
 	// . key is combo of startKey/endKey
 	// . return false on error (and set errno), false otherwise
-	return  addRecord ( collnum  ,
-			    cacheKey , 
-			    //(char *)&k      , sizeof(key_t)       , 
-			    k , m_dks ,
-			    list->getList() , list->getListSize() ,
-			    0 );
+	return addRecord( collnum, cacheKey, k, m_dks, list->getList(), list->getListSize(), 0 );
 }
 
 // . basically adding a list of only 1 record
@@ -738,22 +648,12 @@ bool RdbCache::addList ( collnum_t collnum , char *cacheKey , RdbList *list ) {
 // . we do not copy "rec" so caller must malloc it
 // . returns -1 on error and sets errno
 // . returns node # in tree we added it to on success
-bool RdbCache::addRecord ( collnum_t collnum ,
-			   //key_t  cacheKey  , 
-			   char  *cacheKey  , 
-			   char  *rec       , 
-			   int32_t   recSize   ,
-			   int32_t   timestamp ,
-			   char **retRecPtr ) {
-	return addRecord (collnum, cacheKey, NULL, 0, rec, recSize, timestamp,
-			  retRecPtr);
+bool RdbCache::addRecord( collnum_t collnum, char *cacheKey, char *rec, int32_t recSize, int32_t timestamp,
+						  char **retRecPtr ) {
+	return addRecord( collnum, cacheKey, NULL, 0, rec, recSize, timestamp, retRecPtr );
 }
 
-bool RdbCache::addRecord ( char  *coll      ,
-			   char  *cacheKey  , 
-			   char  *rec       , 
-			   int32_t   recSize   ,
-			   int32_t   timestamp ) {
+bool RdbCache::addRecord( char *coll, char *cacheKey, char *rec, int32_t recSize, int32_t timestamp ) {
 	collnum_t collnum = g_collectiondb.getCollnum ( coll );
 	if ( collnum < (collnum_t) 0 ) {
 		log("db: Could not cache rec for collection \"%s\".",coll);
@@ -762,27 +662,21 @@ bool RdbCache::addRecord ( char  *coll      ,
 	return addRecord (collnum, cacheKey, NULL, 0, rec, recSize, timestamp);
 }
 
-bool RdbCache::addRecord ( collnum_t collnum ,
-			   char  *cacheKey  , 
-			   char  *rec1      ,
-			   int32_t   recSize1  ,
-			   char  *rec2      ,
-			   int32_t   recSize2  ,
-			   int32_t   timestamp ,
-			   char **retRecPtr ) {
-
+bool RdbCache::addRecord( collnum_t collnum, char *cacheKey, char *rec1, int32_t recSize1, char *rec2,
+						  int32_t recSize2, int32_t timestamp, char **retRecPtr ) {
 	// bail if cache empty. maybe m_maxMem is 0.
 	if ( m_totalBufSize <= 0 ) return true;
 
-	//int64_t startTime = gettimeofdayInMillisecondsLocal();
 	if ( collnum < (collnum_t)0) {char *xx=NULL;*xx=0; }
 	if ( collnum >= m_maxColls ) {char *xx=NULL;*xx=0; }
+
 	// full key not allowed because we use that in markDeletedRecord()
 	if ( KEYCMP(cacheKey,KEYMAX(),m_cks) == 0 ) { char  *xx=NULL;*xx=0; }
 
 	// debug msg
 	int64_t t = 0LL ;
 	if ( g_conf.m_logTimingDb ) t = gettimeofdayInMillisecondsLocal();
+
 	// need space for record data
 	int32_t need = recSize1 + recSize2;
 	// are we bad?
@@ -792,25 +686,32 @@ bool RdbCache::addRecord ( collnum_t collnum ,
 			   need,m_fixedDataSize);
 	}
 	// don't allow 0 timestamps, those are special indicators
-	if ( timestamp == 0 ) timestamp = getTimeLocal();
-	//if ( timestamp == 0 && cacheKey.n0 == 0LL && cacheKey.n1 == 0 )
-	if ( timestamp == 0 && KEYCMP(cacheKey,KEYMIN(),m_cks)==0 )
-		return log(LOG_LOGIC,"db: cache: addRecord: Bad "
-			   "key/timestamp.");
+	if ( timestamp == 0 ) {
+		timestamp = getTimeLocal();
+	}
+
+	if ( timestamp == 0 && KEYCMP(cacheKey,KEYMIN(),m_cks)==0 ) {
+		return log( LOG_LOGIC, "db: cache: addRecord: Bad key/timestamp." );
+	}
+
 	// bail if no writing ops allowed now
 	if ( ! g_cacheWritesEnabled ) return false;
 	if (   m_isSaving           ) return false;
+
 	// collnum_t and cache key
-	//need += sizeof(collnum_t) + sizeof(key_t);
 	need += sizeof(collnum_t) + m_cks;
+
 	// timestamp
 	need += 4;
+
 	// . trailing 0 collnum_t, key and trailing time stamp
 	// . this DELIMETER tells us to go to the next buf
 	//need += sizeof(collnum_t) + sizeof(key_t) + 4 ; // timestamp
 	need += sizeof(collnum_t) + m_cks + 4 ;
+
 	// and size, if not fixed or we support lists
 	if ( m_fixedDataSize == -1 || m_supportLists ) need += 4;
+
 	// watch out
 	if ( need >= m_totalBufSize )
 		return log(LOG_INFO,
@@ -916,7 +817,6 @@ bool RdbCache::addRecord ( collnum_t collnum ,
 	// . store 0 collnum, key AND timestamp at end of record --> delimeter
 	// . CAUTION: if doing a "promote" we can end up deleting the rec
 	//   we are pointing to, then clobbering it with this memset!
-	//memset ( p , 0 , sizeof(collnum_t) + 16 /*key+timestamp*/);
 	memset ( p , 0 , sizeof(collnum_t) + m_cks + 4 /*key+timestamp*/);
 
 	// count the occupied memory, excluding the terminating 0 key
@@ -948,7 +848,8 @@ bool RdbCache::addRecord ( collnum_t collnum ,
 bool RdbCache::deleteRec ( ) {
 	// sanity. 
 	if ( m_tail < 0 || m_tail >= m_totalBufSize ) {
-		char *xx = NULL; *xx = 0;}
+		char *xx = NULL; *xx = 0;
+	}
 
 	// get ptr from offset
 	int32_t  bufNum = m_tail / BUFSIZE;
@@ -984,14 +885,11 @@ bool RdbCache::deleteRec ( ) {
 		     (int32_t)collnum, g_collectiondb.m_numRecsUsed,  
 		     m_dbname);
 		char *xx=NULL;*xx=0;
-		// exception for gourav's bug (dbname=Users)
-		// i am tired of it craping out every 2-3 wks
-		//if ( m_dbname[0]=='U' ) return true;
+
 		// some records might have been deleted
 		m_needsSave = true;
 		// but its corrupt so don't save to disk
 		m_corruptionDetected = true;
-		//char *xx=NULL;*xx=0;
 		return false;
 	}
 	
@@ -1002,27 +900,19 @@ bool RdbCache::deleteRec ( ) {
 	// get time stamp
 	int32_t  timestamp = *(int32_t  *)p ; p += 4;
 	// a timestamp of 0 and 0 key, means go to next buffer
-	//if ( timestamp == 0 && k.n0 == 0LL && k.n1 == 0 ) {
 	if ( timestamp == 0 && KEYCMP(k,KEYMIN(),m_cks)==0 ) {
 		// if we wrap around back to first buffer then
 		// change the "wrapped" state to false. that means
 		// we are no longer directly in front of the write
 		// head, but behind him again.
 		if ( ++bufNum >= m_numBufs ) { 
-			bufNum = 0; 
-			//m_tail = 0; 
-			//m_wrapped = false; 
-			//return true;  //continue;
+			bufNum = 0;
 		}
+
 		// otherwise, point to the start of the next buffer
 		p      = m_bufs[bufNum];
 		m_tail = bufNum * BUFSIZE;
-		// sanity
-		//if ( m_tail < 0  || m_tail > m_totalBufSize ) {
-		//	char *xx = NULL; *xx = 0;}
-		// if ( this == &g_spiderLoop.m_winnerListCache )
-		// 	logf(LOG_DEBUG, "db: cachebug: wrapping tail to 0");
-		//return true; // continue;
+
 		goto top;
 	}
 	
@@ -1039,60 +929,28 @@ bool RdbCache::deleteRec ( ) {
 		char *xx = NULL; *xx = 0;
 	}
 
-	//int32_t saved = m_tail;
-	
-	// debug msg (MDW)
-	// if ( this == &g_spiderLoop.m_winnerListCache ) {
-	// log("cache: deleting rec @ %"INT32" size=%"INT32"",m_tail,
-	//     dataSize+2+12+4+4);
-	// }
-
 	// skip over rest of rec
 	p += dataSize;
-	// remove this rec from the count, (4 bytes for ptr)
-	//m_memOccupied -= (p - start) + 4;
+
 	// otherwise, it's a simple advance
 	m_tail += (p - start);
 	
 	// sanity. this must be failing due to a corrupt dataSize...
-	if ( m_tail < 0 || 
-	     m_tail +(int32_t)sizeof(collnum_t)+m_cks+4>m_totalBufSize){
-		char *xx = NULL; *xx = 0;}
-	
-	// if ( this == &g_spiderLoop.m_winnerListCache )
-	// 	log("spider: rdbcache: removing tail rec collnum=%i",
-	// 	    (int)collnum);
+	if ( m_tail < 0 || m_tail +(int32_t)sizeof(collnum_t)+m_cks+4>m_totalBufSize ) {
+		char *xx = NULL; *xx = 0;
+	}
 
 	// delete key from hash table, iff is for THIS record
 	// but if it has not already been voided.
 	// we set key to KEYMAX() in markDeletedRecord()
-	if ( KEYCMP(k,KEYMAX(),m_cks) != 0 ){
+	if ( KEYCMP(k,KEYMAX(),m_cks) != 0 ) {
 		removeKey ( collnum , k , start );
 		markDeletedRecord(start);
 	}
 
-
-	//if ( this == &g_robotdb.m_rdbCache ) 
-	// if ( this == &g_spiderLoop.m_winnerListCache )
-	// 	logf(LOG_DEBUG, "db: cachebug: removing k.n0=0x%"XINT64" "
-	// 	     "oldtail=%"INT32" newtail=%"INT32" ds=%"INT32"", 
-	// 	     ((key_t *)k)->n0,saved,m_tail,dataSize);
-
-	//else
-	//	logf(LOG_DEBUG,"test: oops");
 	// count as a delete
 	m_deletes++;
-	// void this key in the buffer, 
-	// so it doesn't try to delete it later from
-	// the hash table
-	// memset(start+sizeof(collnum_t), 0xff, m_cks);
-	
-	// debug msg
-	//log("%s m_tail = %"INT32", #ptrs=%"INT32"",
-	//     m_dbname,m_tail,m_numPtrsUsed);
-	//}
-	// debug msg
-	//log("%s m_tail = %"INT32", #ptrs=%"INT32"",m_dbname,m_tail,m_numPtrsUsed);
+
 	m_needsSave = true;
 	return true;
 }
@@ -1101,11 +959,7 @@ bool RdbCache::deleteRec ( ) {
 // and attempt to delete the key only once.
 void RdbCache::markDeletedRecord(char *ptr){
 	int32_t dataSize = sizeof(collnum_t)+m_cks+sizeof(int32_t);
-	// debug it 
-	// if ( this == &g_spiderLoop.m_winnerListCache ) {
-	//logf(LOG_DEBUG,"cache: makeDeleteRec ptr=0x%"PTRFMT" off=%"INT32"",
-	//      (PTRTYPE)ptr,(int32_t)(ptr-m_bufs[0]));
-	// }
+
 	// get dataSize and data
 	if ( m_fixedDataSize == -1 || m_supportLists ) {
 		dataSize += 4 +                      // size
@@ -1127,54 +981,44 @@ void RdbCache::markDeletedRecord(char *ptr){
 }
 
 // patch the hole so chaining still works
-//void RdbCache::removeKey ( collnum_t collnum , key_t key , char *rec ) {
 void RdbCache::removeKey ( collnum_t collnum , char *key , char *rec ) {
-	//int32_t n = (key.n0 + (uint64_t)key.n1)% m_numPtrsMax;
 	int32_t n = hash32 ( key , m_cks ) % m_numPtrsMax;
-	// debug msg
-	//if ( m_cks == 4)
-	//	log("remove first try = slot #%"INT32" (%"INT32")",n,m_numPtrsMax);
-	// debug msg
-	//log("%s removing key.n1=%"UINT32" key.n0=%"UINT64"",m_dbname,key.n1,key.n0);
-	//if ( m_cks == 4 )
-	//	log("removing k=%"XINT32"",*(int32_t *)key);
 	// chain
 	while ( m_ptrs[n] && 
 		( *(collnum_t *)(m_ptrs[n]+0                ) != collnum ||
-		  //*(key_t     *)(m_ptrs[n]+sizeof(collnum_t)) != key     ) )
-		  KEYCMP(m_ptrs[n]+sizeof(collnum_t),key,m_cks) != 0 ) )
-		if ( ++n >= m_numPtrsMax ) n = 0;
-	//while ( m_ptrs[n] && *(key_t *)m_ptrs[n] != key ) 
-	//	if ( ++n >= m_numPtrsMax ) n = 0;
+		  KEYCMP(m_ptrs[n]+sizeof(collnum_t),key,m_cks) != 0 ) ) {
+		if (++n >= m_numPtrsMax) n = 0;
+	}
+
 	// . return false if key not found
 	// . this happens sometimes, if m_tail wraps to 0 and the new rec
 	//   the gets placed at the end of the last m_buf, changing m_bufEnds
 	//   then m_tail may revisit many recs it already removed from hashtbl
 	if ( ! m_ptrs[n] ) {
-		log(LOG_LOGIC,"db: cache: removeKey: Could not find key. "
-		    "Trying to scan whole table.");
+		log(LOG_LOGIC,"db: cache: removeKey: Could not find key. Trying to scan whole table.");
 		// try scanning whole table
 		int32_t i;
 		for ( i = 0 ; i < m_numPtrsMax ; i++ ) {
 			// skip if empty
 			if ( ! m_ptrs[i] ) continue;
+
 			// skip if no match
 			if (KEYCMP(m_ptrs[i]+sizeof(collnum_t),key,m_cks) != 0)
 				continue;
+
 			// got a match
-			log(LOG_LOGIC,"db: cache: removeKey. Found key in "
-			    "linear scan. Wierd.");
+			log( LOG_LOGIC, "db: cache: removeKey. Found key in linear scan. Weird.");
 			n = i;
 			break;
 		}
 		if ( i >= m_numPtrsMax ) {
-			log(LOG_LOGIC,"db: cache: removeKey: BAD ENGINEER. "
-			    "dbname=%s",m_dbname );
+			log( LOG_LOGIC, "db: cache: removeKey: BAD ENGINEER. dbname=%s", m_dbname );
 			char *xx = NULL;
 			*xx = 1;
 			return;
 		}
 	}
+
 	// if does not point to this rec , it is now pointing to the latest,
 	// promoted copy of the rec, so do not delete
 	if ( m_ptrs[n] != rec ) {
@@ -1184,29 +1028,31 @@ void RdbCache::removeKey ( collnum_t collnum , char *key , char *rec ) {
 		return;
 	}
 
-	// debug msg 
-	//key_t *k = (key_t *)(m_ptrs[n]+2);
-	//log("cache: %s removing key.n1=%"UINT32" key.n0=%"UINT64" from slot #%"INT32"",
-	//    m_dbname,k->n1,k->n0,n);
-	
 	// all done if already cleared
 	if ( ! m_ptrs[n] ) return;
+
 	// clear it
 	m_ptrs[n] = NULL;
 	m_numPtrsUsed--;
 	m_memOccupied -= sizeof(char *);//4;
+
 	// advance through list after us now
 	if ( ++n >= m_numPtrsMax ) n = 0;
+
 	// keep looping until we hit an empty slot
 	while ( m_ptrs[n] ) {
 		char *ptr = m_ptrs[n];
+
 		// point to the key
 		char *kptr = ptr + sizeof(collnum_t);
+
 		// clear it
 		m_ptrs[n] = NULL;
+
 		// undo stats
 		m_numPtrsUsed--;
 		m_memOccupied -= sizeof(char *);//4;
+
 		// re-hash it back to possibly fill the "gap"
 		addKey ( *(collnum_t *)ptr , kptr , ptr );
 		if ( ++n >= m_numPtrsMax ) n = 0;
@@ -1216,53 +1062,27 @@ void RdbCache::removeKey ( collnum_t collnum , char *key , char *rec ) {
 //void RdbCache::addKey ( collnum_t collnum , key_t key , char *ptr ) { 
 void RdbCache::addKey ( collnum_t collnum , char *key , char *ptr ) { 
 	// look up in hash table
-	//int32_t n = (key.n0 + (uint64_t)key.n1)% m_numPtrsMax;
 	int32_t n = hash32 ( key , m_cks ) % m_numPtrsMax;
-	// save orig for debugging
-	//int32_t n2 = n;
-	// debug msg
-	//log("add first try = slot #%"INT32" (%"INT32")",n,m_numPtrsMax);
-	//int32_t n = key.n0 % m_numPtrsMax;
+
 	// chain
 	while ( m_ptrs[n] && 
 		( *(collnum_t *)(m_ptrs[n]+0                ) != collnum ||
 		  //*(key_t     *)(m_ptrs[n]+sizeof(collnum_t)) != key     ) )
 		  KEYCMP(m_ptrs[n]+sizeof(collnum_t),key,m_cks) != 0 ) )
 		if ( ++n >= m_numPtrsMax ) n = 0;
-	//while ( m_ptrs[n] && *(key_t *)m_ptrs[n] != key ) 
-	//	if ( ++n >= m_numPtrsMax ) n = 0;
 	// if already there don't inc the count
 	if ( ! m_ptrs[n] ) {
 		m_numPtrsUsed++;
 		m_memOccupied += sizeof(char *);
-		// debug msg 
-		//key_t *k = (key_t *)key;
-		//log("cache: %s added key.n1=%"UINT32" key.n0=%"UINT64" to slot #%"INT32" "
-		//    "ptr=0x%"XINT32" off=%"INT32" size=%"INT32"",
-		//    m_dbname,k->n1,k->n0,n,ptr,ptr-m_bufs[0],
-		//    *(int32_t *)(ptr+2+12+4));
 	}
-	// debug msg
-	//else 
-	//	log("%s update key.n1=%"UINT32" key.n0=%"UINT64" in slot #%"INT32"",
-	//	    m_dbname,key.n1,key.n0,n);
-		
+
 	// If this pointer is already set, we may be replacing it from 
 	// Msg5::needRecall.  We need to mark the old record as deleted
-	if (m_ptrs[n]){
-		//char *xx = NULL; *xx = 0;
+	if ( m_ptrs[n] ) {
 		markDeletedRecord(m_ptrs[n]);
 	}
 	// store the ptr
 	m_ptrs[n] = ptr;
-	// debug testing
-	//m_crcs[n] = crc;
-
-	//if ( this == &g_robotdb.m_rdbCache ) 
-	// if ( this == &g_spiderLoop.m_winnerListCache )
-	// 	logf(LOG_DEBUG,"db: cachebug: addkey slot #%"INT32" has "
-	// 	     "ptr=0x%"PTRFMT"",n,(PTRTYPE)ptr);
-
 }
 
 /*
